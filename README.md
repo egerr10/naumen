@@ -10,20 +10,10 @@ npm install
 npm run serve
 ```
 
-### Compiles and minifies for production
-```
-npm run build
-```
+### Фичлист:
 
-### Run your tests
-```
-npm run test
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+1. Поиск по википедии.
+2. Выдача релеватных запросов при вводе фразы.
+3. Установлено ограничение на частоту запросов списка релевантных запросов, для уменьшения кол-ва запросов при вводе.
+4. Сохранение истории запросов (очередь FIFO), проверка на дублирование.
+5. Сохранение массива с историей в localStorage, получение при загрузке приложения.
