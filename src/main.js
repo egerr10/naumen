@@ -12,13 +12,6 @@ Vue.component('Loading', Loading);
 
 Vue.config.productionTip = false;
 
-Vue.directive('focus', {
-  inserted(el) {
-    // Переключаем фокус на элемент
-    el.focus();
-  },
-});
-
 new Vue({
   router,
   store,

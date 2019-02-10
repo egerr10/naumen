@@ -100,8 +100,10 @@ export default {
       let count = 0;
       let averageValue = 0;
       for (const item in this.result) {
-        sum += this.result[item].length;
-        count += 1;
+        if (Object.prototype.hasOwnProperty.call(this.result, item)) {
+          sum += this.result[item].length;
+          count += 1;
+        }
       }
       averageValue = sum / count;
       return Math.round(averageValue);

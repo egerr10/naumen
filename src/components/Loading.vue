@@ -28,10 +28,10 @@ export default {
 <style scoped>
   .loader{
     height: 80px;
-    width: 100%;
+    width: 650px;
     text-align: center;
-    display: inline-block;
     vertical-align: top;
+    margin-top: 20px;
   }
   svg path {
     fill: #326bff;

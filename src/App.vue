@@ -1,6 +1,6 @@
 <template>
   <div class="app" v-bind:class="{ default: !changeTheme, dark: changeTheme, }" id="app">
-    <div class="theme">
+    <div title="Сменить тему" class="theme">
       <div class="them-item-body">
         <div class="theme-item-inner" v-bind:class="{ default: changeTheme, dark: !changeTheme, }"
              v-on:click="test"></div>
