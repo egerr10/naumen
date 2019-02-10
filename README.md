@@ -10,6 +10,10 @@ npm install
 npm run serve
 ```
 
+### Demo
+
+https://egerr10.github.io
+
 ### Фичлист:
 
 1. Поиск по википедии.
