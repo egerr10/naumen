@@ -1,43 +1,53 @@
 <template>
   <div class="body">
-    <div class="logo-block">
-      <a title="https://www.naumen.ru" href="https://www.naumen.ru" target="_blank"><div class="n-logo"></div></a>
-      <a title="https://ru.wikipedia.org/wiki/Naumen" href="https://ru.wikipedia.org/wiki/Naumen" target="_blank">
-        <div class="w-logo"><img src="../assets/wikilogo.png" alt=""></div>
-      </a>
-    </div>
+
+    <el-row :gutter="10">
+      <el-col :span="18">
+        <div class="logo-block">
+          <a title="https://www.naumen.ru" href="https://www.naumen.ru" target="_blank"><div class="n-logo"></div></a>
+          <a title="https://ru.wikipedia.org/wiki/Naumen" href="https://ru.wikipedia.org/wiki/Naumen" target="_blank">
+            <div class="w-logo"><img src="../assets/wikilogo.png" alt=""></div>
+          </a>
+        </div>
+      </el-col>
+      <el-col :span="18">
+        <el-form :inline="true" @submit.native.prevent="getWiki" class="form-inline" status-icon>
+          <el-autocomplete id="input"
+                           :select-when-unmatched="true"
+                           :clearable="true"
+                           :trigger-on-focus="false"
+                           popper-class="my-autocomplete"
+                           v-model="query"
+                           :fetch-suggestions="querySearch"
+                           placeholder="Wiki поиск"
+                           @focus="historyShow"
+                           @select="handleSelect">
+            <template slot-scope="{ item }">
+              <div class="value">{{ item }}</div>
+            </template>
+          </el-autocomplete>
+        </el-form>
+        <div class="result-info" v-if="calc">Среднее количество
+          символов в статье: {{calc}}</div>
+        <div id="history" v-if="historyView" class="history-body">
+          <div class="history-container">
+            <div class="history-body-item" v-for="(item, index) in history" v-bind:key="item">
+              <div class="history-item" v-on:click="getFromHistoryQuery(item)">{{item}}</div>
+              <div class="history-item-delete" v-on:click="deleteHistoryQuery(index)">удалить</div>
+            </div>
+            <div v-on:click="deleteHistoryAll" class="history-title">
+              Очистить историю поиска
+            </div>
+          </div>
+        </div>
+        <div class="fail" v-if="queryError">Поздравляем! Вы нашли то, чего в Википедии нет!</div>
+      </el-col>
+      <el-col :span="2">
+        <el-button native-type="submit" size="medium" type="primary">Найти</el-button>
+      </el-col>
+    </el-row>
+
     <div class="search-body">
-      <el-form :inline="true" @submit.native.prevent="getWiki" class="form-inline" status-icon>
-        <el-autocomplete id="input"
-          :select-when-unmatched="true"
-          :clearable="true"
-          :trigger-on-focus="false"
-          popper-class="my-autocomplete"
-          v-model="query"
-          :fetch-suggestions="querySearch"
-          placeholder="Wiki поиск"
-          @focus="historyShow"
-          @select="handleSelect">
-          <template slot-scope="{ item }">
-            <div class="value">{{ item }}</div>
-          </template>
-        </el-autocomplete>
-        <el-form-item>
-          <el-button native-type="submit" size="medium" type="primary">Найти</el-button>
-        </el-form-item>
-      </el-form>
-      <div class="result-info" v-if="calc">Среднее количество
-        символов в статье: {{calc}}</div>
-      <div id="history" v-if="historyView" class="history-body">
-        <div class="history-body-item" v-for="(item, index) in history" v-bind:key="item">
-          <div class="history-item" v-on:click="getFromHistoryQuery(item)">{{item}}</div>
-          <div class="history-item-delete" v-on:click="deleteHistoryQuery(index)">удалить</div>
-        </div>
-        <div v-on:click="deleteHistoryAll" class="history-title">
-          Очистить историю поиска
-        </div>
-      </div>
-      <div class="fail" v-if="queryError">Поздравляем! Вы нашли то, чего в Википедии нет!</div>
       <loading v-if="loading"></loading>
       <div class="result-container">
         <div v-for="item in result" :key="item.pageid">
@@ -84,7 +94,7 @@ export default {
       const div = $('#input');
       const div2 = $('#history');
       if (!div.is(e.target) && div.has(e.target).length === 0
-        && !div2.is(e.target) && div2.has(e.target).length === 0) {
+          && !div2.is(e.target) && div2.has(e.target).length === 0) {
         this.historyView = false;
       }
     });
@@ -204,16 +214,15 @@ export default {
 <style>
   .body {
     margin: 0 auto;
-    width: 1100px;
-    padding-top: 150px;;
+    max-width: 1000px;
+    padding-top: 50px;
   }
   .logo-block {
     display: -webkit-box;
     display: -ms-flexbox;
     display: flex;
-    margin: 0 400px;
+    margin: 15px auto;
     width: 220px;
-    padding-bottom: 25px;
   }
   .n-logo {
     background-image: url(https://www.naumen.ru/local/templates/naumen/images/svg/build/sprite.svg);
@@ -228,15 +237,20 @@ export default {
     position: relative;
     bottom: 20px;
   }
+
   .history-body {
-    width: 628px;
     padding: 10px;
     border: 1px solid #dcdfe6;
-    border-top: none;
-    position: absolute;
+    position: relative;
     z-index: 10;
     background-color: white;
   }
+
+  .history-container {
+    width: 100%;
+    border-top: none;
+  }
+
   .history-body-item {
     margin-bottom: 10px;
     display: -webkit-box;
@@ -270,11 +284,13 @@ export default {
   }
   .search-body {
     margin: 0 auto;
-    width: 800px;
   }
   .form-inline {
     width: auto;
     text-align: left;
+    display: -webkit-flex;
+    display: flex;
+
   }
   .el-form-item {
     display: inline-block;
@@ -282,11 +298,8 @@ export default {
   }
   .result-container {
     text-align: left;
-    width: 800px;
+    width: 100%;
     margin-top: 50px;
-  }
-  .el-input {
-    width: 650px;
   }
   .el-form-item {
     margin-bottom: 0;
@@ -330,6 +343,10 @@ export default {
     max-height: 400px;
   }
 
+  .el-autocomplete {
+    width: 100%;
+  }
+
   .result-info {
     text-align: left;
     padding: 10px;
@@ -338,10 +355,17 @@ export default {
     font-size: 14px;
   }
   .fail {
-    text-align: center;
-    width: 650px;
     margin-top: 22px;
-    font-size: 22px;
+    font-size: 18px;
     color: #6d6d6d;
+  }
+
+  @media screen and (max-width: 500px) {
+    .body {
+      padding-top: 0;
+    }
+    .history-item, .history-item-delete, .history-title {
+      font-size: 12px;
+    }
   }
 </style>

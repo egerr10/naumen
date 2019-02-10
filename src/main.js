@@ -6,7 +6,6 @@ import router from './router';
 import store from './store';
 import Loading from './components/Loading.vue';
 
-
 Vue.use(ElementUI);
 Vue.component('Loading', Loading);
 
