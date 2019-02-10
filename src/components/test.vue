@@ -1,64 +1,65 @@
 <template>
   <div class="body">
-
-  <div class="search-body">
     <div class="logo-block">
-      <a href="https://www.naumen.ru" target="_blank"><div class="n-logo"></div></a>
-      <a href="https://ru.wikipedia.org/wiki/Naumen" target="_blank">
-      <div class="w-logo"><img src="../assets/wikilogo.png" alt=""></div>
+      <a title="https://www.naumen.ru" href="https://www.naumen.ru" target="_blank"><div class="n-logo"></div></a>
+      <a title="https://ru.wikipedia.org/wiki/Naumen" href="https://ru.wikipedia.org/wiki/Naumen" target="_blank">
+        <div class="w-logo"><img src="../assets/wikilogo.png" alt=""></div>
       </a>
     </div>
-
-    <el-form :inline="true" @submit.native.prevent="getWiki" class="form-inline" status-icon>
-      <el-input v-focus class="search-input" type="text" v-model="query"></el-input>
-      <el-form-item>
-        <el-button native-type="submit" size="medium" type="primary">Найти</el-button>
-      </el-form-item>
-    </el-form>
-
-    <div id="example" v-if="exampleVisible" class="example-container">
-      <div class="example-body">
-      <div class="example-item" v-for="item in exampleResult" :key="item">
-        <div v-on:click="setWord(item)">{{item}}</div>
-      </div>
-      </div>
-      <div v-if="history.length" class="history-body">
-        <div class="history-title">
-          История поиска:
-          <span v-on:click="deleteHistoryAll" class="history-delete">(очистить)</span>
-        </div>
+    <div class="search-body">
+      <el-form :inline="true" @submit.native.prevent="getWiki" class="form-inline" status-icon>
+        <el-autocomplete id="input"
+          :select-when-unmatched="true"
+          :clearable="true"
+          :trigger-on-focus="false"
+          popper-class="my-autocomplete"
+          v-model="query"
+          :fetch-suggestions="querySearch"
+          placeholder="Wiki поиск"
+          @focus="historyShow"
+          @select="handleSelect">
+          <template slot-scope="{ item }">
+            <div class="value">{{ item }}</div>
+          </template>
+        </el-autocomplete>
+        <el-form-item>
+          <el-button native-type="submit" size="medium" type="primary">Найти</el-button>
+        </el-form-item>
+      </el-form>
+      <div class="result-info" v-if="calc">Среднее количество
+        символов в статье: {{calc}}</div>
+      <div id="history" v-if="historyView" class="history-body">
         <div class="history-body-item" v-for="(item, index) in history" v-bind:key="item">
-          <div class="history-item" v-on:click="setWord(item)">{{item}}</div>
-          <div class="history-item-delete" v-on:click="deleteHistoryItem(index)">x</div>
+          <div class="history-item" v-on:click="getFromHistoryQuery(item)">{{item}}</div>
+          <div class="history-item-delete" v-on:click="deleteHistoryQuery(index)">удалить</div>
+        </div>
+        <div v-on:click="deleteHistoryAll" class="history-title">
+          Очистить историю поиска
         </div>
       </div>
-    </div>
-
-
-    <div class="result-container">
-      <div v-for="item in result" :key="item.pageid">
-        <div class="item-container">
-          <div class="item-link">
-            <a v-bind:href="item.fullurl" target="_blank">{{ item.title }}</a>
-          </div>
-          <div class="item-ext">
-            <div> <img v-if="item.thumbnail" v-bind:src="item.thumbnail.source" alt=""></div>
-            <div class="item-ext-text" v-html="item.extract"></div>
+      <div class="fail" v-if="queryError">Поздравляем! Вы нашли то, чего в Википедии нет!</div>
+      <loading v-if="loading"></loading>
+      <div class="result-container">
+        <div v-for="item in result" :key="item.pageid">
+          <div class="item-container">
+            <div class="item-link">
+              <a v-bind:href="item.fullurl" target="_blank">{{ item.title }}</a>
+            </div>
+            <div class="item-ext">
+              <div> <img v-if="item.thumbnail" v-bind:src="item.thumbnail.source" alt=""></div>
+              <div class="item-ext-text" v-html="item.extract"></div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-  </div>
+    </div>
   </div>
 </template>
 
 <script>
 /* eslint-disable no-console,prefer-destructuring */
-
-
 import axios from 'axios';
-import _ from 'lodash';
 import JQuery from 'jquery';
 
 const $ = JQuery;
@@ -70,21 +71,21 @@ export default {
     const query = '';
     const result = {};
     const history = [];
-    const exampleResult = {};
-    const exampleVisible = false;
+    const exampleResult = [];
+    const historyView = false;
     const loading = false;
+    const queryError = false;
     return {
-      query, result, loading, question, exampleResult, exampleVisible, history,
+      query, result, historyView, question, exampleResult, history, loading, queryError,
     };
-  },
-  created() {
-    this.debouncedGetAnswer = _.debounce(this.getWords, 200);
   },
   mounted() {
     $(document).mouseup((e) => {
-      const div = $('#example');
-      if (!div.is(e.target) && div.has(e.target).length === 0) {
-        this.exampleVisible = false;
+      const div = $('#input');
+      const div2 = $('#history');
+      if (!div.is(e.target) && div.has(e.target).length === 0
+        && !div2.is(e.target) && div2.has(e.target).length === 0) {
+        this.historyView = false;
       }
     });
     if (!JSON.parse(localStorage.getItem('history'))) {
@@ -93,15 +94,34 @@ export default {
       this.history = JSON.parse(localStorage.getItem('history'));
     }
   },
-  watch: {
-    // эта функция запускается при любом изменении вопроса
-    query() {
-      this.exampleVisible = this.query !== ''; // если запрос не пустой показываем блок вариантов
-      this.debouncedGetAnswer();
+  computed: {
+    calc() {
+      let sum = 0;
+      let count = 0;
+      let averageValue = 0;
+      for (const item in this.result) {
+        sum += this.result[item].length;
+        count += 1;
+      }
+      averageValue = sum / count;
+      return Math.round(averageValue);
     },
   },
   methods: {
-    checkHistory() {
+    historyShow() { // отображаем историю запросов
+      if (!this.query && this.history.length > 0) {
+        this.historyView = true;
+      }
+    },
+    handleSelect(item) { // запускаем функцию поиска по википедии
+      if (item.value || item.value === '') {
+        this.query = item.value;
+      } else {
+        this.query = item;
+      }
+      this.getWiki();
+    },
+    checkHistory() { // проверяем есть ли такой запрос в истории, если есть не добавляем
       const word = this.query;
       const checkHistory = this.history.slice();
       for (let i = 0; i < checkHistory.length; i += 1) {
@@ -109,7 +129,8 @@ export default {
       }
       return checkHistory.indexOf(word.toLowerCase()) !== -1;
     },
-    pushHistory() {
+    pushHistory() { // добавляем запрос в историю
+      this.query = this.query.trim();
       if (this.history.length < 15 && !this.checkHistory() && this.query.length > 0) {
         this.history.unshift(this.query);
         this.saveHistory();
@@ -119,78 +140,79 @@ export default {
         this.saveHistory();
       }
     },
-    saveHistory() {
+    saveHistory() { // сохраняем в localStorage
       localStorage.setItem('history', JSON.stringify(this.history));
     },
-    deleteHistoryAll() {
+    deleteHistoryAll() { // очищаем историю
+      this.historyView = false;
       this.history = [];
       this.saveHistory();
     },
-    deleteHistoryItem(index) {
+    deleteHistoryQuery(index) { // очищаем запрос из истории
       this.history.splice(index, 1);
       this.saveHistory();
     },
-    setWord(item) {
-      this.query = item;
+    getFromHistoryQuery(query) { // поиск по запросу из истории
+      this.query = query;
+      this.historyView = false;
       this.getWiki();
     },
-    getWords() {
+    querySearch(query, cb) { // ищем ключевые слова
+      this.historyView = false;
       axios({
-        url: `https://ru.wikipedia.org/w/api.php?origin=*&action=opensearch&search=${this.query}&format=json&limit=10`,
+        url: `https://ru.wikipedia.org/w/api.php?origin=*&action=opensearch&search=${this.query}&format=json&limit=20`,
         method: 'GET',
       })
         .then((response) => {
-          this.loading = false;
           this.exampleResult = response.data[1];
+          cb(response.data[1]);
         })
         .catch((error) => {
           console.log(error);
         });
     },
-    getWiki() {
-      this.result = [];
-      this.loading = true;
-      this.exampleVisible = false;
-      this.pushHistory();
-      axios({
-        url: `https://ru.wikipedia.org/w/api.php?origin=*&format=json&action=query&generator=search&gsrnamespace=0
-        &gsrlimit=10&prop=pageimages|info|extracts&pilimit=max&exintro&exsentences=1&exlimit=max&gsrsearch=${this.query}&inprop=url`,
-        method: 'GET',
-      })
-        .then((response) => {
-          this.loading = false;
-          this.exampleVisible = false;
-          this.result = response.data.query.pages;
+    getWiki() { // поиск по википедии
+      this.query = this.query.trim();
+      if (this.query.length > 0) {
+        this.queryError = false;
+        this.loading = true;
+        this.result = [];
+        this.pushHistory();
+        axios({
+          url: `https://ru.wikipedia.org/w/api.php?origin=*&format=json&action=query&generator=search&gsrnamespace=1
+        &gsrlimit=20&prop=pageimages|info|extracts&pilimit=max&exintro&exsentences=1&exlimit=max&gsrsearch=${this.query}&inprop=url`,
+          method: 'GET',
         })
-        .catch((error) => {
-          this.loading = false;
-          console.log(error);
-        });
+          .then((response) => {
+            this.loading = false;
+            this.result = response.data.query.pages;
+          })
+          .catch((error) => {
+            this.loading = false;
+            this.queryError = true;
+            console.log(error);
+          });
+      }
     },
   },
-
 };
 </script>
 
 
 <style>
-
   .body {
-    margin: 125px auto 0;
+    margin: 0 auto;
     width: 1100px;
-    display: -webkit-box;
-    display: flex;
+    padding-top: 150px;;
   }
-
   .logo-block {
     display: -webkit-box;
     display: -ms-flexbox;
     display: flex;
-    margin: 0 auto;
+    margin: 0 400px;
     width: 220px;
     padding-bottom: 25px;
   }
-
   .n-logo {
     background-image: url(https://www.naumen.ru/local/templates/naumen/images/svg/build/sprite.svg);
     display: block;
@@ -200,35 +222,35 @@ export default {
     height: 20px;
     background-position: -2988px -2708px;
   }
-
   .w-logo {
     position: relative;
     bottom: 20px;
   }
-
   .history-body {
-    float: right;
-    width: 200px;
+    width: 628px;
     padding: 10px;
+    border: 1px solid #dcdfe6;
+    border-top: none;
+    position: absolute;
+    z-index: 10;
+    background-color: white;
   }
-
-  .history-title {
-    font-weight: 600;
-    margin-bottom: 10px;
-    font-size: 12px;
-  }
-
   .history-body-item {
     margin-bottom: 10px;
     display: -webkit-box;
     display: flex;
   }
-
-  .history-item, .history-item-delete, .history-delete {
+  .history-item, .history-item-delete, .history-title {
     cursor: pointer;
     color: #237ace;
     text-decoration: none;
+    font-size: 14px;
+  }
+
+  .history-title {
+    font-weight: 600;
     font-size: 12px;
+    cursor: pointer;
   }
 
   .history-item {
@@ -236,99 +258,50 @@ export default {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
-  .history-delete {
-    font-size: 10px;
-  }
-
   .history-item-delete {
     margin-left: auto;
   }
-
   .history-item:hover,
   .history-item-delete:hover,
-  .history-delete:hover {
+  .history-title:hover {
     color: red;
   }
-
   .search-body {
-    margin: 0 40px;
+    margin: 0 auto;
     width: 800px;
   }
-
   .form-inline {
     width: auto;
     text-align: left;
   }
-  .search-input {
-  }
-
   .el-form-item {
     display: inline-block;
     margin-left: 20px;
   }
-
   .result-container {
     text-align: left;
     width: 800px;
-    margin-top: 30px;
+    margin-top: 50px;
   }
-
-  .example-container {
-    text-align: left;
-    width: 648px;
-    border: 1px solid #dcdfe6;
-    border-top: none;
-    position: absolute;
-    background-color: white;
-    display: -webkit-box;
-    display: flex;
-  }
-
-  .example-body {
-    padding: 10px 0;
-    width: 600px;
-  }
-
-  .example-item {
-    margin-bottom: 10px;
-    padding: 0 15px;
-    cursor: pointer;
-  }
-
-  .example-item:hover {
-    background-color: #ebf5ff;
-  }
-
-  .example-item:last-child {
-    margin-bottom: 0;
-  }
-
   .el-input {
     width: 650px;
   }
-
   .el-form-item {
     margin-bottom: 0;
   }
-
   .item-container {
     margin-bottom: 30px;
   }
-
   .item-link {
   }
-
   .item-link a {
     font-size: 18px;
     color: #237ace;
     text-decoration: none;
   }
-
   .item-link a:hover {
     color: red;
   }
-
   .item-ext {
     display: -webkit-flex;
     display: flex;
@@ -336,12 +309,37 @@ export default {
     -ms-flex-align: center!important;
     align-items: center!important;
   }
-
   .item-ext img {
     margin-right: 15px;
+    background-color: white;
   }
-
   .item-ext-text p {
     margin: 0!important;
+  }
+
+  .el-autocomplete-suggestion li.highlighted, .el-autocomplete-suggestion li:hover {
+    background-color: #cde5ff;
+  }
+
+  .el-popper .popper__arrow, .el-popper .popper__arrow::after {
+    border-style: hidden;
+  }
+  .el-autocomplete-suggestion__wrap {
+    max-height: 400px;
+  }
+
+  .result-info {
+    text-align: left;
+    padding: 10px;
+    position: absolute;
+    z-index: 5;
+    font-size: 14px;
+  }
+  .fail {
+    text-align: center;
+    width: 650px;
+    margin-top: 22px;
+    font-size: 22px;
+    color: #6d6d6d;
   }
 </style>
