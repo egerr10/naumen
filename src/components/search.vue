@@ -43,7 +43,7 @@
         <div class="fail" v-if="queryError">Поздравляем! Вы нашли то, чего в Википедии нет!</div>
       </el-col>
       <el-col :span="2">
-        <el-button native-type="submit" size="medium" type="primary">Найти</el-button>
+        <el-button v-on:click="getWiki" size="medium" type="primary">Найти</el-button>
       </el-col>
     </el-row>
 
