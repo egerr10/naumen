@@ -46,7 +46,7 @@
         <el-button v-on:click="getWiki" size="medium" type="primary">Найти</el-button>
       </el-col>
     </el-row>
-
+1 2 3
     <div class="search-body">
       <loading v-if="loading"></loading>
       <div class="result-container">
@@ -89,6 +89,9 @@ export default {
       query, result, historyView, question, exampleResult, history, loading, queryError,
     };
   },
+  created() {
+    window.addEventListener('click', this.test);
+  },
   mounted() {
     $(document).mouseup((e) => {
       const div = $('#input');
@@ -120,6 +123,10 @@ export default {
     },
   },
   methods: {
+    test(e) {
+      // const el = document.querySelector('#test');
+      console.log(e);
+    },
     historyShow() { // отображаем историю запросов
       if (!this.query && this.history.length > 0) {
         this.historyView = true;
