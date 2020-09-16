@@ -46,7 +46,7 @@
         <el-button v-on:click="getWiki" size="medium" type="primary">Найти</el-button>
       </el-col>
     </el-row>
-1 2 3
+1 2 3 f
     <div class="search-body">
       <loading v-if="loading"></loading>
       <div class="result-container">
